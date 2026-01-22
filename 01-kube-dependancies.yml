@@ -1,0 +1,52 @@
+---
+- hosts: kubernetes
+  become: yes
+  tasks:
+   - name: Install Docker
+     apt:
+       name: docker.io
+       state: present
+       update_cache: true
+
+   - name: Disable SWAP (1/2)
+     command: swapoff -a
+     when: ansible_swaptotal_mb > 0
+
+   - name: Disable SWAP in fstab (2/2)
+     replace:
+       path: /etc/fstab
+       regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+       replace: '# \1'
+
+   - name: Install APT Transport HTTPS
+     apt:
+       name: apt-transport-https
+       state: present
+
+   - name: Add Kubernetes apt-key
+     apt_key:
+       url: https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key
+       state: present
+
+   - name: Add Kubernetes APT repository
+     apt_repository:
+      repo: deb https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /
+      state: present
+      filename: 'kubernetes'
+
+   - name: Install kubelet and kubeadm
+     apt:
+       name:
+         - kubelet
+         - kubeadm
+       state: present
+       update_cache: true
+
+- hosts: kubemasters
+  become: yes
+  tasks:
+   - name: Install kubectl
+     apt:
+       name: kubectl
+       state: present
+       force: yes
